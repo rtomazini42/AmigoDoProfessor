@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Exemplo de acesso a questões aleatórias via JavaScript</title>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/sql.js/dist/sql-wasm.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link rel="stylesheet" href="styles/index.css">
+</head>
+<body>
+    <h1>O Amigo do professor:</h1>
+    <div id="questoes"></div>
+
+    <script>
+        config = {
+            locateFile: filename => `https://cdn.jsdelivr.net/npm/sql.js/dist/${filename}`
+        }
+
+        // Variável para armazenar as respostas selecionadas pelo usuário
+        var respostas = [];
+
+        // Objeto para mapear o nome da tabela para o nome do assunto correspondente
+        var tabelaAssuntoMap = {
+            'tbl_questoes_algoritmos': 'Algoritmos',
+            'tbl_questoes_circuitos_digitais': 'Circuitos Digitais',
+            'tbl_questoes_grafos': 'Grafos',
+            'tbl_questoes_inteligencia_artificial': 'Inteligência Artificial',
+            'tbl_questoes_orientacao_objetos': 'Orientação a Objetos',
+            'tbl_questoes_redes': 'Redes',
+            'tbl_questoes_tautologia': 'Tautologia'
+        };
+
+        // Carrega o banco de dados SQLite
+        initSqlJs(config).then(function (SQL) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'dataBase/QUESTOES.db', true);
+            xhr.responseType = 'arraybuffer';
+            xhr.onload = function (e) {
+                var uInt8Array = new Uint8Array(this.response);
+                var db = new SQL.Database(uInt8Array);
+
+                // Array para armazenar as questões aleatórias
+                var questoesAleatorias = [];
+
+                // Itera sobre as tabelas e busca 2 questões aleatórias de cada uma delas
+                var tabelas = [
+                    'tbl_questoes_algoritmos',
+                    'tbl_questoes_circuitos_digitais',
+                    'tbl_questoes_grafos',
+                    'tbl_questoes_inteligencia_artificial',
+                    'tbl_questoes_orientacao_objetos',
+                    'tbl_questoes_redes',
+                    'tbl_questoes_tautologia'
+                ];
+
+                tabelas.forEach(tabela => {
+                    var query = `SELECT * FROM ${tabela} ORDER BY RANDOM() LIMIT 2`;
+                    var result = db.exec(query);
+                    var questoes = result[0].values;
+                    questoes.forEach(questao => {
+                        // Armazena a questão e o nome da tabela no array de questões aleatórias
+                        questoesAleatorias.push({
+                            questao: questao,
+                            tabela: tabela
+                        });
+                    });
+                });
+
+                // Embaralha as questões aleatórias para que elas não estejam agrupadas por tabela
+                questoesAleatorias.sort(() => Math.random() - 0.5);
+
+                // Exibe as questões na página HTML e armazena as respostas em um array
+                var divQuestoes = document.getElementById('questoes');
+                questoesAleatorias.forEach((questaoInfo, index) => {
+                    var questao = questaoInfo.questao;
+                    var tabela = questaoInfo.tabela;
+                    var assunto = tabelaAssuntoMap[tabela];
+
+                    divQuestoes.innerHTML += `
+                        <div class="question col-8">
+                            <p>Questão ${index + 1} (Assunto: ${assunto}):</p>
+                            <p>${questao[1]}</p>
+                            <div style="margin-bottom: 10px;" class="col-12">
+                                
+                                <div class="col linha"><input type="radio" name="questao_${index}" value="A"> ${questao[3]}</div>
+                                <div class="col linha"><input type="radio" name="questao_${index}" value="B"> ${questao[4]}</div>
+                                <div class="col linha"><input type="radio" name="questao_${index}" value="C"> ${questao[5]}</div>
+                                <div class="col linha"><input type="radio" name="questao_${index}" value="D"> ${questao[6]}</div>
+                            </div>
+                            <hr>
+                        </div>
+                    `;
+
+
+                    // Armazena o índice da resposta correta no array de respostas
+                    respostas.push(questao[2]);
+                });
+
+                // Adiciona o botão de envio de respostas após a exibição das questões
+                divQuestoes.innerHTML += `
+                    <button class="btn btn-primary" onclick="verificarRespostas()">Enviar Respostas</button>
+                `;
+            };
+            xhr.send();
+        });
+
+        function verificarRespostas() {
+    // Obtém todas as questões exibidas
+    var questoes = document.getElementsByClassName('question');
+
+    // Itera sobre as questões e armazena as respostas selecionadas pelo usuário
+    var respostasSelecionadas = [];
+    for (var i = 0; i < questoes.length; i++) {
+        var questao = questoes[i];
+        var radios = questao.getElementsByTagName('input');
+
+        for (var j = 0; j < radios.length; j++) {
+            var radio = radios[j];
+            if (radio.checked) {
+                respostasSelecionadas.push(radio.value.toLowerCase());
+                break;
+            }
+        }
+    }
+
+    // Verifica as respostas selecionadas pelo usuário com as respostas corretas
+    var pontuacao = 0;
+    for (var i = 0; i < respostas.length; i++) {
+        var questao = questoes[i];
+        if (respostasSelecionadas[i] === respostas[i]) {
+            console.log("Acertou!");
+            pontuacao++;
+            questao.classList.add("acertou");
+            questao.classList.remove("errou");
+        } else {
+            console.log("Errou!");
+            questao.classList.add("errou");
+            questao.classList.remove("acertou");
+        }
+    }
+
+    // Exibe a pontuação no console (apenas para fins de teste)
+    console.log('Pontuação:', pontuacao);
+}
+
+    </script>
+</body>
+</html>
